@@ -8,15 +8,18 @@
 Program comand_line_define_ORCA
 implicit none
       
-integer maxarg,io,i,nn,j,ii
+integer maxarg,io,i,nn,j,ii,mat
+parameter (mat=10000)
+integer ifrez(mat)
 integer charge,scfcv
 integer nat,gcart,mode
-integer iat(10000),giter,siter,grid
+integer iat(mat),giter,siter,grid
 ! parameter (maxarg=40)
 character*80, allocatable :: arg(:)    
 character*80 outfile
 character*80 func ,fcore
-character*80 bas,home,optim,coordsys,optstep
+character*20 bas,abas
+character*80 home,optim,coordsys,optstep
 character*80 pwd            
 character*80 atmp       
 character*80 infile
@@ -31,7 +34,7 @@ logical ANC,CNEW,SCS,MP2,T,MDCI,lgrid,Lbas,Lfunc,lsolvent,lfcore,ladd
 
 
 real*8  xx(5),trustrad
-real*8 xyz(3,10000)
+real*8 xyz(3,mat)
 character*80, allocatable :: TOT(:)
 
       
@@ -60,7 +63,7 @@ lfcore=.false.
 ladd=.false.
 
 VDW  =.false.
-FTMOL=.false.
+FTMOL=.true.
 JOB=.false.
 FREQ=.false.
 TS=.false.
@@ -186,8 +189,9 @@ siter=125
 maxarg=iargc()
 if(maxarg.gt.0) then
 !maxarg=iargc()
-      write(*,*) 'arguments(debug) :',maxarg
-allocate(arg(maxarg),TOT(maxarg))
+!      write(*,*) 'arguments(debug) :',maxarg
+
+      allocate(arg(maxarg),TOT(maxarg))
       do i=1,maxarg
          call getarg(i,arg(i))
       enddo
@@ -201,72 +205,44 @@ allocate(arg(maxarg),TOT(maxarg))
         write(*,'(10x,''            | V '',a,'' |       '')')trim(version)
         write(*,'(10x,''          developer version     '')') 
       endif
-          write(*,*)'OPTIONS:'
-!          write(*,*)'   -v (print defaults, after reading .ciadfrc)'
-          write(*,*)'   -h / -help / ? (this help output)'
-          write(*,*)'   -H <int> <string1> ... <stringN>  (adds lines for simple input)'
-!          write(*,*)' more information in the manual'
-!          write(*,*)'   '
-!          write(*,*)'* input/ouput:'
+         write(*,*)'OPTIONS:'
+         write(*,*)'   -h / -help / ? (this help output)'
+         write(*,*)'   -H <int> <string1> ... <stringN>  (adds lines for simple input)'
          write(*,*)'   -n (re-name output file )'
          write(*,*)'   -f   <string>  input file (def: XYZ.in)'
          write(*,*)'   -tm (TMOL input format)'
          write(*,*)'   -xyz (XYZ (xmol) input format (def))'
-!          write(*,*)'  [ -job (sets JOB option=true)                ]'
-!          write(*,*)'  [ -o    <string> actual JOB file)            ]' 
-!          write(*,*)'  [ -wall <int>  (walltime in h for "jobfile") ]'
          write(*,*)' needs: <input> file in XYZ or TMOL format'
          write(*,*)' '
          write(*,*)'* calculation setup:'
          write(*,*)'   -func   <string>'
          write(*,*)'   -bas    <string>'
-!          write(*,*)'   -fc     <string> (frozen core, def: none)'
-!          write(*,*)'   -grid   <integer>'
          write(*,*)'   -vdw06 // -vdw10 (DFT-D) // -novdw'
-!          write(*,*)'   -noopt / -nopt (do single point)'
          write(*,*)'   -opt  (do optimization)'
          write(*,*)'   -chrg   <integer>'
-!          write(*,*)'   -scfcv  <integer> (scf convergence, def: 7)'
          write(*,*)'   -siter  <integer> (max scf iterations)'
-!          write(*,*)'   -grad   <integer> (gradient convergence,def: 4)'
-!          write(*,*)'   -c      <integer> (max cycle in GeoOpt)'
          write(*,*)'   -cart (cartesian coordinates, def: delocal)'
-!          write(*,*)'   -intal (internal coordinates)'
-!          write(*,*)'   -sym    <string> (symmetry, eg: "C\(4h\)" )'
          write(*,*)'   -cosmo  (COSMO with solvent=default=water)' 
          write(*,*)'   -cosmoS  <string> (COSMO with solvent=<string>)' 
          write(*,*)'   -freq (numerical freq)'
          write(*,*)'   -zora (turns scalar zora on)'
-!          write(*,*)'   -ts <integer> (TS search, <int>=modes)'
-!          write(*,*)'   '
-!          write(*,*)'* special calls:'
-!          write(*,*)'   -frag (handle self defined fragment files)'
-!          write(*,*)'   -quick (pbe-d/dz grid=3,cart,Geocycle=30)'
-!          write(*,*)'   -dftb (dftb input, quick pre-opt,-noopt for SP)'
-!          write(*,*)'   -quild (quild input with deloc coordinates)'
-!          write(*,*)'   -ancopt (prepares ancopt input)'
-!          write(*,*)'   '
-!          write(*,*)'   '
          stop
       endif
+
 ! now process the arguments. (A 'space' after the option is a good idea)
 add=''
 TOT=''
 ii=0
 
       do i=1,maxarg
-!       write(*,*) arg
-!        TOT(i)=trim(add)
          if(arg(i).ne.'')then
             if(index(arg(i),'-H').ne.0)then !   '-add <int> <arg_1 ...arg_ii>
              ladd=.true.
-!               call readl(arg(i+1),xx,nn)
              do j=i+1,maxarg
               if(index(arg(j),' -').ne.0)then  ! next arguments, goto end of loop
                goto 123
               endif
              TOT(j)=trim(arg(j))
-!              write(*,*) TOT(j),i,j
              ii=j
              enddo
              exit
@@ -275,46 +251,29 @@ ii=0
             VDW=.false. ! DFT-D on VDW10 default
             TOT(i)='VDW10'
             endif
-            if(index(arg(i),'-vdw10').ne.0)then
+            if(index(arg(i),'-d3').ne.0)then
             VDW=.false. ! DFT-D on VDW10 default
-            TOT(i)='VDW10'
+            TOT(i)='VDW10BJ'
             endif
             if(index(arg(i),'-vdw06').ne.0)then
             VDW=.false. ! DFT-D on VDW10 default
             TOT(i)='VDW06'
             endif
-!             if(index(arg(i),'-ancopt ').ne.0) then  ! ancopt external optimizer
-!             ANC=.true.  
-!             endif
-!             if(index(arg(i),'-v ').ne.0)   ECHO=.true. ! print some defaults
             if(index(arg(i),'-quick ').ne.0) quick=.true.
              if(index(arg(i),'-n ').ne.0) then       ! name of the output file
              outfile=arg(i+1) 
              endif
             if(index(arg(i),'-freq').ne.0) TOT(i)='NUMFREQ' ! numerical freq
-!             if(index(arg(i),'-noopt').ne.0)   OPT=.false. ! SP
-!             if(index(arg(i),'-nopt').ne.0)   OPT=.false. ! SP
+             if(index(arg(i),'-noopt').ne.0)   OPT=.false. ! SP
+             if(index(arg(i),'-nopt').ne.0)   OPT=.false. ! SP
             if(index(arg(i),'-opt').ne.0) then
             OPT=.true. ! GEO OPT
             TOT(i)='TightOpt'
             endif
-!             if(index(arg(i),'-novdw').ne.0) VDW=.false.  ! DFT-D off
             if(index(arg(i),'-zora').ne.0) then
             ZORA=.true.  ! scalar zora
             TOT(i)='ZORA'
             endif
-            if(index(arg(i),'-xyz ').ne.0) then ! xzy files as input
-             FXYZ=.true.
-             FTMOL=.false.
-            endif
-!             if(index(arg(i),'-norestart ').ne.0)then  !infile
-!                restart=.false.           
-!             add='NOAUTOSTART'
-!             endif
-             if(index(arg(i),'-tm ').ne.0) then ! turbomole format as input
-             FTMOL=.true.
-             FXYZ=.false.
-             endif
              if(index(arg(i),'-f ').ne.0)then  !infile
                 infile=arg(i+1)           
              endif
@@ -332,10 +291,7 @@ ii=0
             write(TOT(i),'(''COSMO('',a,'')'')') trim(solvent)
             endif
             if(index(arg(i),'-cosmo').ne.0)then ! COSMO
-!             lsolvent=.true.
                COSMO=.true.
-!                solvent=arg(i+1)
-!             write(TOT(i),'(''COSMO('',a,'')'')') trim(solvent)
             endif
             if(index(arg(i),'-ts ').ne.0)then ! TS search
                call readl(arg(i+1),xx,nn)
@@ -343,14 +299,6 @@ ii=0
                mode=idint(xx(1))
                TOT(i)='OptTS'
             endif
-!             if(index(arg(i),'-scfcv').ne.0)then ! SCFCONV
-!                call readl(arg(i+1),xx,nn)
-!                scfcv=idint(xx(1))
-!             endif
-!             if(index(arg(i),'-grad').ne.0)then ! GRADCONV
-!                call readl(arg(i+1),xx,nn)
-!                gcart=idint(xx(1))
-!             endif
             if(index(arg(i),'-siter ').ne.0)then ! SCFCONV
                call readl(arg(i+1),xx,nn)
                siter=idint(xx(1))
@@ -366,28 +314,14 @@ ii=0
             lgrid=.true.
              call readl(arg(i+1),xx,nn)
              grid =xx(1)
-!              TOT(i)='NOFINALGRID'
              write(TOT(i),'(''GRID'',I1,'' NOFINALGRID'')') grid
-!             write(*,*) grid, xx(1)
             endif
             if(index(arg(i),'-bas').ne.0) then
-!             Lbas=.true.
              bas  =arg(i+1)  ! basis set
-!             write(TOT(i),'(a)') bas
             endif
-            if(index(arg(i),'-cbas').ne.0) cbas=.true.
-            if(index(arg(i),'-jbas').ne.0) jbas=.true.
+            if(index(arg(i),'-ric').ne.0) cbas=.true.
+            if(index(arg(i),'-ri').ne.0) jbas=.true.
             if(index(arg(i),'-rijk').ne.0) rijk=.true.
-!             if(index(arg(i),'-cart').ne.0) then ! cartesian optimizer
-!              optstep  ='Cartesian'
-!             endif
-!             if(index(arg(i),'-deloc').ne.0) then ! internal/ Zmatrix optimizer
-!              optstep  ='deloc'
-!             endif
-!             if(index(arg(i),'-nofc').ne.0) then ! frozen core
-!              NOFC=.true.
-!              add='NOFROZENCORE'
-!             endif
             if(index(arg(i),'-func').ne.0) then    ! functional
             Lfunc=.true.
                func=arg(i+1)           
@@ -397,16 +331,11 @@ ii=0
 !!!!!          MDCI         !!!!!!
 
             if(index(arg(i),'-ccsdt').ne.0) CCT=.true.
-!             if(index(arg(i),'-angst').ne.0)RANGST=.true. ! change cartesian coords unit to
-! angstrom
-! !c keep outputs for debuging purposes  (no purpose yet)
-!             if(index(arg(i),'-keep').ne.0)KEEP=.true. 
          endif
 123 continue
       enddo
 endif
 !ccccccccccccccccccccccccc 
-
 
 !cc hidden file
       da=.false.
@@ -424,15 +353,11 @@ endif
       endif
 
 
-
-
 !ccccccccccccccccccccccccccc
 !cccc read coordinates     c
 !ccccccccccccccccccccccccccc
-!  more formats?
-!       if(.not.Frag)
-       if (FXYZ)call xyzrd(xyz,iat,nat,infile)
-       if (FTMOL)call tmolrd(xyz,iat,nat,infile)
+        call tmolrd2(mat,xyz,iat,ifrez,nat,infile,.true.)
+
        open(unit=98,file=xyzfile)
        call wxyz(xyz,iat,nat,98)
        close(98)
@@ -503,9 +428,10 @@ endif
 !cccc adjust aux basis  cccc 
 !cccccccccccccccccccccccccccccccccccc
 atmp=bas
-if(rijk)  bas=trim(bas)//' '//trim(atmp)//'/JK '
-if(jbas.and..not.rijk)  bas=trim(atmp)//'/J '
-if(cbas) bas=trim(bas)//' '//trim(atmp)//'/C'
+abas=''
+if(rijk)  abas=trim(bas)//' '//trim(atmp)//'/JK '
+if(jbas.and..not.rijk)  abas=trim(atmp)//'/J '
+if(cbas) abas=trim(bas)//' '//trim(atmp)//'/C'
 
 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccc
@@ -515,8 +441,6 @@ if(ANC) outfile='orca.in'
    inquire(file=outfile,exist=da)
     if(da) then
       call system('cp '//outfile//' input.bak')
-!       write(*,*) '  !!!  Warning input file already there  !!!'
-!       write(*,*) '  old input now: input.bak'
      endif
 if(io.ne.6)open(unit=io,file=outfile)
 ! START PARSING 
@@ -529,12 +453,12 @@ write(6,'($,'' '',a)') trim(TOT(i))
 enddo
 write(6,'('' '')')
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
-!cccc now process defaults of not specified in the arguments  cccc 
+!cccc now process defaults not specified in the arguments  cccc 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 if(.not.ladd) then
       if(vdw) write(io,'($,'' VDW10'')')
       if(.not.lfunc) write(io,'($,'' '',a)') trim(func)
-      if(.not.lbas) write(io,'($,'' '',a)') trim(bas)
+      if(.not.lbas) write(io,'($,'' '',a,x,a)') trim(bas),trim(abas)
       if(.not.lgrid) write(io,'($,'' GRID'',I1)') grid
       if(COSMO.and..not.lsolvent) write(io,'($,'' COSMO('',a,'')'')') trim(solvent)
 endif
@@ -613,7 +537,6 @@ write(io,'(''end '')')
 endif
 
 
-
 write(io,'(''xyzfile'',I2,'' 1 '',a)') charge,trim(xyzfile)
 write(io,'('' '')')
 write(io,'('' '')')
@@ -651,55 +574,9 @@ if(io.ne.6)close(io)
 
 
 
-
 end program
 
 
-
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-!CCCCCCCC           S. Grimme's helper subroutines                   CCC
-!CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
-
-!c returns the number of heavy (n>10) atoms in a coord file, and the number of diff atom types
-!c sets cu_pd true for some special elements that need more input
-!       subroutine atoms(n,nat,nt,cu_pd)
-!       implicit none
-!       integer n,i,j,nn,nat
-!       logical cu_pd
-!       character*80 a80
-!       real*8 xx(10)
-!       integer na(110),nt,na2(110)
-! 
-!       cu_pd=.false.
-!       na = 0
-!       na2=0
-!       n=0
-!       nat=0
-!       j=0
-!       open(unit=1,file='coord')
-!       read(1,'(a)',end=100) a80
-!  10   read(1,'(a)',end=100) a80
-!       call readl(a80,xx,nn)
-!       if(index(a80,'$').ne.0)goto 100
-!       if(nn.eq.3)then
-!          nat=nat+1
-!          j=j+1
-!          call elem(a80,i)
-!          na2(i)=na2(i)+1
-!          if(i.gt.10) na(i)=na(i)+1
-! !cts check for Cu/Pd problem
-!          if(i.eq.29.or.i.eq.46) cu_pd=.true.
-!       endif
-!       goto 10
-! 100   close(1)
-! 
-!       n=0
-!       do i=1,110
-!          if(na(i).gt.0)n=n+1
-!          if(na2(i).gt.0) nt=nt+1 ! hok   nt= number of different atom types
-!       enddo
-! 
-!       end
 
 !CCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCCC
 

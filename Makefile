@@ -1,5 +1,5 @@
-#PROG = ~/bin/a.out  
- PROG = ./ciorca 
+PROG = ~/bin/ciorca  
+# PROG = ./ciorca 
 
 #--------------------------------------------------------------------------
  OSTYPE=LINUXI
