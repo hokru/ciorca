@@ -28,7 +28,7 @@ character*10 version
 character*250 add
 logical KEEP,HYBRID,GGA,SETSYM,ZORA,CCT
 logical da,TS,COSMO,ECHO,RANGST,JOB,FREQ,RESTART,TE
-logical VDW,PR,OPT,FXYZ,FTMOL,SMOOTH
+logical VDW,PR,OPT,SMOOTH
 logical QUICK,SMEAR,HOPT,NOFC,jbas,rijk,cbas
 logical ANC,CNEW,SCS,MP2,T,MDCI,lgrid,Lbas,Lfunc,lsolvent,lfcore,ladd
 
@@ -63,7 +63,6 @@ lfcore=.false.
 ladd=.false.
 
 VDW  =.false.
-FTMOL=.true.
 JOB=.false.
 FREQ=.false.
 TS=.false.
@@ -117,12 +116,9 @@ siter=125
       call get_environment_variable('PWD',pwd)
       call get_environment_variable('HOME',atmp)
       home=trim(atmp)//'/.ciorcarc'
-!      write(*,*) home
       inquire(file=home,exist=da)
-!      inquire(file='~/.ciadfrc',exist=da) ! doesnt work with gfortran
       if(da)then
          open(unit=20,file=home)
-!         open(unit=20,file='~/.ciadfrc')   ! doesnt work with gfortran
  842     read(20,'(a)',end=942)atmp
          if(index(atmp,'func').ne.0)then         
             call backstring(atmp,func,4)
@@ -130,12 +126,6 @@ siter=125
          if(index(atmp,'basis').ne.0)then         
             call backstring(atmp,bas,5)
          endif
-!          if(index(atmp,'fc ').ne.0)then         
-!             call backstring(atmp,fcore,2)
-!          endif
-!          if(index(atmp,'smear').ne.0)then         
-!             smear=.true.
-!          endif
          if(index(atmp,'vdw').ne.0) then
             if(index(atmp,'on').ne.0)VDW=.true.   
          endif
@@ -143,34 +133,9 @@ siter=125
             call readl(atmp,xx,nn)
             trustrad=xx(nn)
          endif
-!          if(index(atmp,'grid').ne.0)then         
-!             call readl(atmp,xx,nn)
-!             grid=xx(nn)
-!          endif
-         if(index(atmp,'maxcycle').ne.0)then         
-            call readl(atmp,xx,nn)
-            giter=xx(nn)
-         endif
-!          if(index(atmp,'scfiter').ne.0)then         
-!             call readl(atmp,xx,nn)
-!             siter=xx(nn)
-!          endif
-         if(index(atmp,'format').ne.0)then         
-           if(index(atmp,'xyz').ne.0)then         
-            FXYZ=.true.
-           elseif(index(atmp,'tmol').ne.0)then         
-            FTMOL=.true.
-           endif
-         endif
          if(index(atmp,'cosmo').ne.0)then         
             call backstring(atmp,solvent,5)
          endif
-!          if(index(atmp,'restart').ne.0)then         
-!             RESTART=.true.
-!            if(index(atmp,'off').ne.0)then
-!            RESTART=.false.
-!            endif         
-!          endif
          if(index(atmp,'ifile').ne.0)then         
             call backstring(atmp,infile,5)
          endif
@@ -329,8 +294,10 @@ ii=0
             endif
             
 !!!!!          MDCI         !!!!!!
-
-            if(index(arg(i),'-ccsdt').ne.0) CCT=.true.
+            if(index(arg(i),'-mdci').ne.0) then
+            TOT(i)=trim(arg(i+1))
+            endif
+       
          endif
 123 continue
       enddo
@@ -498,15 +465,12 @@ endif
 if(MDCI) then
       write(io,'(''#%mdci'')')
       write(io,'(''#citype'',a)') trim(CITYPE)
-! if(CEPA) write(io,'(''CEPA_1 '')')
-! if(MP3)write(io,'(''MP3'')')
       IF(T)write(io,'(''# Triples 1'')')
       write(io,'(''#KCOpt  '',a)') trim(KCOPT)
       write(io,'(''#MaxIter 35 '')')
       write(io,'(''#TrafoType trafo_jk # trafo_ri '')')
-
-      write(io,'(''#maxCoreWork 500 '')')
-      write(io,'(''#MaxCoreIntAmp 500 '')')
+      write(io,'(''#maxCoreWork 1500 '')')
+      write(io,'(''#MaxCoreIntAmp 1500 '')')
 endif
 !********************************************
 !********************************* GEOM BLOCK
