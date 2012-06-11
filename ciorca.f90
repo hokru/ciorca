@@ -21,7 +21,7 @@ character*80 func ,fcore
 character*20 bas,abas
 character*80 home,optim,coordsys,optstep
 character*80 pwd            
-character*80 atmp       
+character*80 atmp,aa       
 character*80 infile
 character*80 solvent,citype,KCOPT,xyzfile
 character*10 version
@@ -42,7 +42,7 @@ version='0.2b'
 
 
 
-io=1
+io=99
 
 GGA=.true.   ! assuming always GGA
 HYBRID=.false.
@@ -74,14 +74,14 @@ SMOOTH=.false.
 TE=.false.
 SMEAR=.true.
 ANC=.false.
- CNEW=.true.
- HOPT=.false.
+CNEW=.true.
+HOPT=.false.
 setsym=.false.
  
  
- cbas=.false.
- jbas=.true.
- rijk=.false.
+cbas=.false.
+jbas=.true.
+rijk=.false.
 
 
 func='revPBE'
@@ -98,7 +98,7 @@ scfcv=7
  COSMO=.false. 
 
 
-trustrad=0.3
+trustrad=0.35
 optim='Delocal'
 
 giter=250
@@ -214,11 +214,15 @@ ii=0
             endif
             if(index(arg(i),'-vdw').ne.0)then
             VDW=.false. ! DFT-D on VDW10 default
-            TOT(i)='VDW10'
+            TOT(i)='VDW10BJ'
             endif
             if(index(arg(i),'-d3').ne.0)then
             VDW=.false. ! DFT-D on VDW10 default
             TOT(i)='VDW10BJ'
+            endif
+            if(index(arg(i),'-zero').ne.0)then
+            VDW=.false. ! DFT-D on VDW10 default
+            TOT(i)='VDW10'
             endif
             if(index(arg(i),'-vdw06').ne.0)then
             VDW=.false. ! DFT-D on VDW10 default
@@ -423,7 +427,7 @@ write(6,'('' '')')
 !cccc now process defaults not specified in the arguments  cccc 
 !ccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccccc
 if(.not.ladd) then
-      if(vdw) write(io,'($,'' VDW10'')')
+      if(vdw) write(io,'($,'' VDW10BJ'')')
       if(.not.lfunc) write(io,'($,'' '',a)') trim(func)
       if(.not.lbas) write(io,'($,'' '',a,x,a)') trim(bas),trim(abas)
       if(.not.lgrid) write(io,'($,'' GRID'',I1)') grid
@@ -436,14 +440,16 @@ write(io,'(''#NOITER '')')
 !********************************************
 !**************************************** SCF
 !********************************************
-      write(io,'(''%scf Guess PModel # PAtom Hueckel'')')
+aa='%scf Guess PModel'
+write(io,'(a)') aa
+aa=' # PAtom Hueckel'
+write(io,'(a)') aa
       write(io,'(''#%scf Guess MORead'')')
-      write(io,'(2x,''#MOInp "orca.gbw" # "orca.ges"'')')
-      write(io,'(2x,''#Convergence Tight # loose  normal VeryTight Extreme '')')
-      write(io,'(2x,''#LShift 0.25 #(default)'')')
+      write(io,'(2x,''#MOInp "orca.mos" '')')
+      write(io,'(2x,''#Convergence Tight'')')
+      write(io,'(2x,''#LShift 0.25 '')')
       write(io,'(2x,''MaxIntMem 500 '')')
       write(io,'(2x,''MaxIter '',I5)') siter
-      write(io,'(2x,''#Thresh 1e-8 #depends on "Convergence"'')')
       write(io,'(2x,''#TolE 1e-'',I1)')scfcv
 write(io,'(''end '')')
 
@@ -453,7 +459,7 @@ write(io,'(''end '')')
 !********************************************
 if(MP2) then
       write(io,'(''$mp2 '')')
-      write(io,'(''Maxcore 256 # '')')
+      write(io,'(''Maxcore 1024  '')')
       write(io,'(''RI true '')')
       write(io,'(''#CalcS2 true '')')
       if(SCS) write(io,'(''DoSCS true '')')
@@ -468,7 +474,8 @@ if(MDCI) then
       IF(T)write(io,'(''# Triples 1'')')
       write(io,'(''#KCOpt  '',a)') trim(KCOPT)
       write(io,'(''#MaxIter 35 '')')
-      write(io,'(''#TrafoType trafo_jk # trafo_ri '')')
+      write(io,'(''#TrafoType trafo_jk '')')
+      write(io,'(''#TrafoType trafo_ri '')')
       write(io,'(''#maxCoreWork 1500 '')')
       write(io,'(''#MaxCoreIntAmp 1500 '')')
 endif
@@ -478,9 +485,10 @@ endif
 if(OPT) then
 write(io,'(''%geom '')')
 write(io,'(2x,''MaxIter '',I4)') giter
-write(io,'(2x,'' Trust '',F4.2,'' # Trust -0.4 # no radius update '')') trustrad
+write(io,'(2x,'' Trust '',F5.2)') trustrad
+write(io,'(2x,''# Trust -0.4 # # no radius update '')') 
 write(io,'(2x,''MaxStep 0.3 '')')
-write(io,'(2x,''Inhess Lindh # Read unit Schlegel'')')
+write(io,'(2x,''Inhess Lindh '')')
 write(io,'(2x,'' #InHessName "orca.hess"'')')
 if(TS) then
 write(io,'(2x,''TS_search '')')
@@ -488,7 +496,7 @@ write(io,'(2x,'' TS_Mode {M '',I2,''} '')') mode
 write(io,'(2x,'' end'')')
 write(io,'(2x,'' #Recalc_Hess 5'')')
 endif
-if(HOPT) write(io,'(2x,''# Optimizehydrogens true # just relaxing the hydrogends'')')
+if(HOPT) write(io,'(2x,''# Optimizehydrogens true '')')
 write(io,'(2x,''Coordsys '',a,'' # deloc, cartesian'')') trim(coordsys)
 write(io,'(2x,''Step '',a)') trim(optstep)
 write(io,'(2x,''#TolE 5e-6 '')')
@@ -501,14 +509,7 @@ write(io,'(''end '')')
 endif
 
 
-write(io,'(''xyzfile'',I2,'' 1 '',a)') charge,trim(xyzfile)
-write(io,'('' '')')
-write(io,'('' '')')
-write(io,'('' '')')
-write(io,'('' '')')
-write(io,'('' '')')
-write(io,'('' '')')
-write(io,'('' '')')
+write(io,'(''*xyzfile'',I2,'' 1 '',a)') charge,trim(xyzfile)
 write(io,'('' '')')
 write(io,'('' '')')
 write(io,'('' '')')
